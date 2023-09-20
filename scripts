@@ -1,0 +1,35 @@
+CREATE STREAM youtube_videos (
+    video_id NVARCHAR KEY,
+    title NVARCHAR,
+    likes INTEGER,
+    comments INTEGER,
+    views INTEGER,
+    favorites INTEGER,
+    thumbnail NVARCHAR
+) WITH (
+    KAFKA_TOPIC = 'youtube_videos',
+    PARTITIONS = 1,
+    VALUE_FORMAT = 'json'
+    ):
+
+
+CREATE TABLE youtube_analytics_changes WITH(
+    KAFKA_TOPIC='youtube_analytics_changes') AS
+SELECT
+video_id,
+latest_by_offset(title) as title,
+latest_by_offset(comments, 2)[1] as comments_prev,
+latest_by_offset(comments, 2)[2] as comments_curr,
+latest_by_offset(likes, 2)[1] as likes_prev,
+latest_by_offset(likes, 2)[2] as likes_curr,
+latest_by_offset(views, 2)[1] as views_prev,
+latest_by_offset(views, 2)[2] as views_curr,
+latest_by_offset(favorites, 2)[1] as favorites_prev,
+latest_by_offset(favorites, 2)[2] as favorites_curr,
+FROM youtube_videos
+GROUP BY video_id;
+
+
+SELECT * FROM YOUTUBE_ANALYTICS_CHANGES
+WHERE likes_prev <> likes_curr
+EMIT CHANGES;
